@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 	"time"
+
+	"github.com/mustii/goLang/firstLesson/stringutil"
 )
 
 const pi = 3.14
@@ -15,7 +17,7 @@ func Add(x, y float64) float64 {
 
 //This function returns two strings and is only visible here
 func multiple(a, b string) (string, string) {
-	return a, b
+	return stringutil.Reverse(a), stringutil.Reverse(b)
 }
 
 func main() {
