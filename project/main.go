@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
+
+	"github.com/go-http-utils/logger"
 )
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -10,6 +13,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/", indexHandler)
-	http.ListenAndServe(":8000", nil)
+	router := http.NewServeMux()
+	router.HandleFunc("/", indexHandler)
+	http.ListenAndServe(":8000", logger.Handler(router, os.Stdout, logger.DevLoggerType))
 }
