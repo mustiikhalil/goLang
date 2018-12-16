@@ -8,22 +8,37 @@ import (
 
 var wg sync.WaitGroup
 
+func safelySay(s string) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("recovering from: ", r)
+		}
+	}()
+	say(s)
+}
+
 func say(s string) {
+	defer wg.Done()
 	for i := 0; i < 3; i++ {
 		fmt.Println(s)
 		time.Sleep(time.Millisecond * 100)
+		if i == 2 {
+			panic("Oh dear!")
+		}
 	}
-	wg.Done()
 }
 
-func SecondMain() {
-	wg.Add(1)
-	go say("hello")
-	wg.Add(1)
-	go say("there")
-	wg.Wait()
+func test() {
+	defer fmt.Println("done")
+	defer fmt.Println("are we done?")
+	fmt.Println("Testing")
+}
 
+func main() {
+	test()
 	wg.Add(1)
-	go say("hi hi")
+	go safelySay("hello")
+	wg.Add(1)
+	go safelySay("there")
 	wg.Wait()
 }
