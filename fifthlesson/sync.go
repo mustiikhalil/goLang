@@ -36,25 +36,50 @@ func test() {
 	wg.Wait()
 }
 
+var mainCL = make(chan int)
+var doneCL = make(chan struct{})
+
+func selectStatment() {
+	for {
+		select {
+		case number := <-mainCL:
+			fmt.Println("number: ", number)
+		case <-doneCL:
+			fmt.Println("done")
+			break
+		}
+	}
+}
+
 func testChannels() {
 	ch := make(chan int)
-	go func() {
-		i := <-ch
-		fmt.Println(i)
+	wg.Add(2)
+	go func(ch <-chan int) {
+		for {
+			if i, ok := <-ch; ok {
+				fmt.Println(i)
+			} else {
+				break
+			}
+		}
 		wg.Done()
-	}()
-	go func() {
+	}(ch)
+	go func(ch chan<- int) {
 		i := 42
 		ch <- i
-		i = 30
-		fmt.Println(i)
+		ch <- 30
+		close(ch)
 		wg.Done()
-	}()
+	}(ch)
 
 	wg.Wait()
 }
 
 func main() {
 	// test()
-	testChannels()
+	// testChannels()
+	go selectStatment()
+	mainCL <- 40
+	mainCL <- 20
+	doneCL <- struct{}{}
 }
