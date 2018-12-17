@@ -29,16 +29,32 @@ func say(s string) {
 }
 
 func test() {
-	defer fmt.Println("done")
-	defer fmt.Println("are we done?")
-	fmt.Println("Testing")
-}
-
-func main() {
-	test()
 	wg.Add(1)
 	go safelySay("hello")
 	wg.Add(1)
 	go safelySay("there")
 	wg.Wait()
+}
+
+func testChannels() {
+	ch := make(chan int)
+	go func() {
+		i := <-ch
+		fmt.Println(i)
+		wg.Done()
+	}()
+	go func() {
+		i := 42
+		ch <- i
+		i = 30
+		fmt.Println(i)
+		wg.Done()
+	}()
+
+	wg.Wait()
+}
+
+func main() {
+	// test()
+	testChannels()
 }
