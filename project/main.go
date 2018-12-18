@@ -3,11 +3,15 @@ package main
 import (
 	"encoding/xml"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
+	"runtime"
 	"strings"
-	"text/template"
+	"sync"
 )
+
+var wg sync.WaitGroup
 
 var newsMap = make(map[string]NewsMap)
 
@@ -36,27 +40,40 @@ type NewsMap struct {
 
 func NewsAgg() {
 	var s Sitemapindex
-	var n News
+	fetchQueue := make(chan News, 100)
 
-	// hash map to save all the data
 	resp, _ := http.Get("https://www.washingtonpost.com/news-sitemaps/index.xml")
 	bytes, _ := ioutil.ReadAll(resp.Body)
 	xml.Unmarshal(bytes, &s)
-
+	resp.Body.Close()
 	for _, Location := range s.Locations {
-		// Hack to solve a problem with https://
-		s := strings.Split(Location, "//")
+		wg.Add(1)
+		go newsRoutine(fetchQueue, Location)
+	}
+	wg.Wait()
+	close(fetchQueue)
 
-		resp, _ := http.Get("https://" + s[1])
-		bytes, _ := ioutil.ReadAll(resp.Body)
-
-		xml.Unmarshal(bytes, &n)
-
-		for idx, _ := range n.Titles {
-			newsMap[n.Titles[idx]] = NewsMap{n.Keywords[idx], n.Locations[idx]}
+	for n := range fetchQueue {
+		for indx, _ := range n.Titles {
+			newsMap[n.Titles[indx]] = NewsMap{n.Keywords[indx], n.Locations[indx]}
 		}
 	}
+
 	fmt.Println("done")
+}
+
+func newsRoutine(c chan<- News, Location string) {
+	var n News
+	// Hack to solve a problem with https://
+	s := strings.Split(Location, "//")
+
+	resp, _ := http.Get("https://" + s[1])
+	bytes, _ := ioutil.ReadAll(resp.Body)
+
+	xml.Unmarshal(bytes, &n)
+	resp.Body.Close()
+	c <- n
+	wg.Done()
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +83,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	runtime.GOMAXPROCS(4)
 	go NewsAgg() // concurrent go routine
-	// http.HandleFunc("/", indexHandler)
-	// http.ListenAndServe(":8000", nil)
+	http.HandleFunc("/", indexHandler)
+	http.ListenAndServe(":8000", nil)
 }
